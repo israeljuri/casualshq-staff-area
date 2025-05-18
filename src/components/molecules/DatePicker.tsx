@@ -291,7 +291,7 @@ export function DatePicker({
               onMonthChange={setMonth}
               initialFocus
               disabled={disabled}
-              className="w-full"
+              className="w-full [&_button]:rounded-full [&_button:hover]:bg-accent [&_button:focus-visible]:ring-1"
             />
             {showSingleDoneButton && (
               <div className="grid w-full">
@@ -362,9 +362,9 @@ export function DatePicker({
                   onSelect={handleRangeCalendarSelect} // Correct typing for onSelect
                   month={month}
                   onMonthChange={setMonth}
-                  numberOfMonths={1}
+                  numberOfMonths={2}
                   disabled={disabled}
-                  className="[&_button]:rounded-md [&_button:hover]:bg-accent [&_button:focus-visible]:ring-1 grid w-full" // Example of targeting inner buttons
+                  className="[&_button]:rounded-full [&_button:hover]:bg-accent [&_button:focus-visible]:ring-1 grid w-full" // Example of targeting inner buttons
                 />
                 <div className="grid w-full">
                   <Button className="w-full" onClick={handleCustomRangeDone}>

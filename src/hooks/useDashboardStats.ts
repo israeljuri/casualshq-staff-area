@@ -8,7 +8,7 @@ import {
   clockOutService,
   startBreakService,
   endBreakService,
-} from '../services/dashboardService'; // Assuming path is correct
+} from '../services/dashboard.service'; // Assuming path is correct
 import {
   Staff,
   BreakRecord,

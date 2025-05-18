@@ -3,7 +3,7 @@ import {
   TimeLog,
   BreakRecord,
   BreakType,
-} from '@//types';
+} from '@/types';
 
 import { format, parseISO } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';

@@ -4,7 +4,7 @@ import useAlert from '@/hooks/useAlert';
 
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { completeAccountSetup } from '../services/onboardingService';
+import { completeAccountSetup } from '../services/onBoarding.service';
 
 export const useAccountSetup = () => {
   const alert = useAlert();

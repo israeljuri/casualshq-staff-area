@@ -6,6 +6,10 @@ export const SearchStaffSchema = z.object({
   password: z.string().min(8),
 });
 
+export const ForgotPasswordSchema = z.object({
+  email: z.string().email({ message: 'Invalid email address' }),
+});
+
 // Onboarding Schema
 export const CreatePasswordSchema = z
   .object({
@@ -102,6 +106,26 @@ export const CockoutReasonSchema = z.object({
   reason: z.string().min(10),
 });
 
+export const PasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, { message: 'Password must be at least 8 characters long' })
+      .regex(/[A-Z]/, {
+        message: 'Password must contain at least one uppercase letter',
+      })
+      .regex(/[0-9]/, { message: 'Password must contain at least one number' })
+      .regex(/[^A-Za-z0-9]/, {
+        message: 'Password must contain at least one special character',
+      }),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
+
+
 // Types
 export type CockoutReasonData = z.infer<typeof CockoutReasonSchema>;
 export type AccountSetupData = z.infer<typeof AccountSetupSchema>;
@@ -112,6 +136,12 @@ export type FinancialInformationData = z.infer<
   typeof FinancialInformationSchema
 >;
 
+export type ResetPasswordData = {
+  password: string | null;
+};
+
+export type PasswordData = z.infer<typeof PasswordSchema>;
+export type ForgotPasswordData = z.infer<typeof ForgotPasswordSchema>;
 export type AccountData = {
   email: string;
   firstName: string;

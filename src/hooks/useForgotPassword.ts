@@ -1,22 +1,19 @@
 'use client';
 
 import useAlert from '@/hooks/useAlert';
- 
-import { useMutation } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import { staffSignIn } from '../services/authentication.service';
+import { forgotPassword } from '../services/authentication.service';
 
-export const useStaffSignIn = () => {
+import { useMutation } from '@tanstack/react-query';
+
+export const useForgotPassword = () => {
   const alert = useAlert();
-  const router = useRouter();
 
   return useMutation({
-    mutationFn: staffSignIn,
+    mutationFn: forgotPassword,
     onSuccess: () => {
-      alert.showAlert('Signed-In successfully', 'success', {
-        subtext: 'Redirecting you to dashboard',
+      alert.showAlert('Reset link sent', 'success', {
+        subtext: 'A reset link has been sent to your email.',
       });
-      router.replace('/staff');
     },
     onError: (error) => {
       console.error('Password Reset failed (simulated):', error);

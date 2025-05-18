@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { getStaffs } from '@/services/staffService';
+import { getStaffs } from '@/services/staff.service';
 import useAlert from '@/hooks/useAlert';
 
 export const useGetStaffs = () => {
