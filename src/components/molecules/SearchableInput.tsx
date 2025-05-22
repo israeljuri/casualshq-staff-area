@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Input } from '@/components/molecules/Input';
+import { Input } from './Input';
 import { Staff } from '@/types';
 
 export interface SearchableInputProps {
@@ -81,7 +81,12 @@ const SearchableInput = ({
 
   const handleSelectItem = (item: Staff) => {
     onSelectItem(item);
-    setSearchTerm(String(item[searchKeys[0]] || '')); // Display first search key or empty
+    // Combine firstName and lastName when available, fallback to first search key
+    const displayName = [item.firstName || '', item.lastName || '']
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    setSearchTerm(displayName || String(item[searchKeys[0]] || ''));
     setShowDropdown(false);
   };
 
