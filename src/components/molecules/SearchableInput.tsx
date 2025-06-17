@@ -4,7 +4,10 @@ import * as React from 'react';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from './Input';
-import { Staff } from '@/types';
+ interface Staff {
+  id: string;
+  name: string;
+}
 
 export interface SearchableInputProps {
   data: Staff[];
@@ -24,7 +27,6 @@ const SearchableInput = ({
   data,
   searchKeys,
   onResults,
-
   onSelectItem,
   initialValue = '',
   debounceTime = 300,
@@ -82,7 +84,7 @@ const SearchableInput = ({
   const handleSelectItem = (item: Staff) => {
     onSelectItem(item);
     // Combine firstName and lastName when available, fallback to first search key
-    const displayName = [item.firstName || '', item.lastName || '']
+    const displayName = [item.name || '']
       .filter(Boolean)
       .join(' ')
       .trim();

@@ -1,7 +1,12 @@
 import { Button } from '@/components/molecules/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/atoms/card';
-import React, { useState } from 'react'; // Added useState for local break type selection
-import playDarkIcon from "@/assets/staff/play-dark.svg"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/atoms/card';
+import React, { useEffect, useState } from 'react'; // Added useState for local break type selection
+import playDarkIcon from '@/assets/staff/play-dark.svg';
 import Image from 'next/image';
 
 import {
@@ -12,36 +17,52 @@ import {
   SelectValue,
 } from '@/components/atoms/select';
 
-import { BreakType } from '@/types';
+import { BreakType } from '@/types/dashboard';
 import { ConfirmDialog } from '@/components/molecules/ConfirmDialog';
 
-interface TodaysBreakCardProps {
-  currentBreakTime: string; // Formatted duration
-  isOnBreak: boolean;
-  isClockedIn: boolean;
-  onStartBreak: (breakType: BreakType) => void;
-  onResumeWork: () => void;
-  canInteract: boolean; // If false, buttons are disabled
-  breakTypes: BreakType[];
-}
+import useAlert from '@/hooks/useAlert';
+import { useLazyQuery } from '@apollo/client';
+import { GET_BREAK_TYPES } from '@/graphql/queries';
+import BreakValue from './BreakValue';
 
 export const TodaysBreakCard = ({
-  currentBreakTime,
-  isOnBreak,
   isClockedIn,
-  onStartBreak,
-  onResumeWork,
+  setSelectedBreakType,
+  selectedBreakType,
   canInteract,
-  breakTypes,
-}: TodaysBreakCardProps) => {
-  const [selectedBreakType, setSelectedBreakType] = useState<BreakType>(
-    breakTypes[0] || 'Recess'
-  );
+  isOnBreak,
+  breakStartedAt,
+  onBreakStart,
+  startBreakLoading,
+  onBreakEnd,
+  endBreakLoading,
+}: {
+  isClockedIn: boolean;
+  setSelectedBreakType: (breakType: BreakType) => void;
+  selectedBreakType: BreakType;
+  canInteract: boolean;
+  isOnBreak: boolean;
+  breakStartedAt: string;
+  onBreakStart: () => void;
+  startBreakLoading: boolean;
+  onBreakEnd: () => void;
+  endBreakLoading: boolean;
+}) => {
+  const alert = useAlert();
 
+  const [breakTypes, setBreakTypes] = useState<BreakType[]>([]);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
+  const onResumeWork = () => {
+    onBreakEnd();
+  };
+
   const handleInitiateAction = () => {
-    setIsConfirmOpen(true);
+    if (selectedBreakType.id) setIsConfirmOpen(true);
+    else
+      alert.showAlert('No break type selected', 'info', {
+        subtext: 'Please select a break type',
+      });
   };
 
   const handleConfirm = () => {
@@ -55,9 +76,25 @@ export const TodaysBreakCard = ({
 
   const handleStartBreakClick = () => {
     if (canInteract) {
-      onStartBreak(selectedBreakType);
+      onBreakStart();
     }
   };
+
+  // Queries
+  const [getBreakTypes] = useLazyQuery(GET_BREAK_TYPES, {
+    onError: (error) => {
+      alert.showAlert(error.name, 'error', {
+        subtext: error.message,
+      });
+    },
+    onCompleted: (data) => {
+      setBreakTypes(data.breakTypes);
+    },
+  });
+
+  useEffect(() => {
+    getBreakTypes();
+  }, []);
 
   return (
     <>
@@ -67,9 +104,9 @@ export const TodaysBreakCard = ({
         content={
           <article className="p-5 bg-white rounded-2xl border">
             <article className="space-y-3">
-              <h4 className="font-medium text-2xl text-black">Resume break?</h4>
+              <h4 className="font-medium text-2xl text-black">Start break?</h4>
               <p className="text-base text-custom-gray">
-                Are you sure you want to resume your break?
+                Are you sure you want to start your break?
               </p>
             </article>
             <div className="grid grid-cols-2 gap-4 w-full mt-4">
@@ -97,9 +134,11 @@ export const TodaysBreakCard = ({
             canInteract &&
             !isOnBreak && ( // Show select only if clocked in, can interact, and not already on break
               <Select
-                value={selectedBreakType}
+                value={selectedBreakType.id}
                 onValueChange={(value) =>
-                  setSelectedBreakType(value as BreakType)
+                  setSelectedBreakType(
+                    breakTypes.find((type) => type.id === value) as BreakType
+                  )
                 }
                 disabled={!canInteract || !isClockedIn || isOnBreak}
               >
@@ -108,8 +147,12 @@ export const TodaysBreakCard = ({
                 </SelectTrigger>
                 <SelectContent>
                   {breakTypes.map((type) => (
-                    <SelectItem key={type} value={type} className="text-base">
-                      {type}
+                    <SelectItem
+                      key={type.id}
+                      value={type.id}
+                      className="text-base"
+                    >
+                      {type.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -124,16 +167,16 @@ export const TodaysBreakCard = ({
           ) : isOnBreak ? (
             <>
               <div className="text-5xl font-medium text-gray-800 mb-6 tabular-nums py-20">
-                {currentBreakTime}
+                <BreakValue breakStartedAt={breakStartedAt} />
               </div>
               <Button
                 size="lg"
                 onClick={onResumeWork}
-                disabled={!canInteract}
+                disabled={!canInteract || endBreakLoading}
                 leftIcon={<Image src={playDarkIcon} alt="" />}
                 variant={'outline'}
               >
-                Resume work
+                {endBreakLoading ? 'Please wait' : 'End break'}
               </Button>
             </>
           ) : (
@@ -143,24 +186,23 @@ export const TodaysBreakCard = ({
                   !isClockedIn || !canInteract ? 'text-black' : 'text-black'
                 }`}
               >
-                {currentBreakTime === '0:00:00' &&
-                (!isClockedIn || !canInteract) ? (
+                {!isClockedIn || !canInteract ? (
                   <p className="font-medium text-lg text-center px-4 max-w-[30ch]">
                     You can start break after you have clocked in for the day.
                   </p>
                 ) : (
-                  currentBreakTime
+                  <BreakValue breakStartedAt={breakStartedAt} />
                 )}
               </div>
 
               <Button
                 size="lg"
                 onClick={handleInitiateAction}
-                disabled={!canInteract || !isClockedIn}
+                disabled={!canInteract || !isClockedIn || startBreakLoading}
                 leftIcon={<Image src={playDarkIcon} alt="" />}
                 variant={'outline'}
               >
-                Resume break
+                {startBreakLoading ? 'Please wait' : 'Start break'}
               </Button>
             </>
           )}

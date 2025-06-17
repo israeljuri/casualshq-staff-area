@@ -9,22 +9,20 @@ import {
   ChevronLeft,
 } from 'lucide-react';
 
-import { cn } from '@/lib/utils'; // Assumes you have this from Shadcn/ui setup
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/molecules/Button';
-import { Calendar } from '@/components/atoms/calendar'; // CalendarProps for type safety
+import { Calendar } from '@/components/atoms/calendar';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/atoms/popover';
 import { Input } from '@/components/molecules/Input';
-
-// Define DateRange type from react-day-picker, which Calendar uses
 import { DateRange } from 'react-day-picker';
 
 interface DatePreset {
   label: string;
-  getValue: () => Date | DateRange;
+  getValue: () => DateRange;
 }
 
 export interface DatePickerProps {
@@ -34,12 +32,11 @@ export interface DatePickerProps {
   onDateChange?: (date: Date | undefined) => void;
   onDateRangeChange?: (range: DateRange | undefined) => void;
   disabled?: boolean;
-  className?: string; // For PopoverContent
+  className?: string;
   buttonClassName?: string;
   placeholder?: string;
   rangePlaceholderStart?: string;
   rangePlaceholderEnd?: string;
-  // For single date picker, determines if 'Done' button is shown or selection is immediate
   showSingleDoneButton?: boolean;
 }
 
@@ -53,35 +50,49 @@ export function DatePicker({
   className,
   buttonClassName,
   placeholder = 'Pick a date',
-  rangePlaceholderStart = 'Start date',
-  rangePlaceholderEnd = 'End date',
-  showSingleDoneButton = true, // Default to showing Done button for single as per new request
+  showSingleDoneButton = true,
 }: DatePickerProps) {
   const [isOpen, setIsOpen] = React.useState(false);
 
-  // Internal state for selected dates
+  // --- State Management Refactor ---
+  // FIX #2: Differentiate between draft state and committed state for "reset on outside click"
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
     initialDate
   );
+
+  // This is the "final" or "committed" range that is only set on "Done"
+  const [committedRange, setCommittedRange] = React.useState<
+    DateRange | undefined
+  >(initialDateRange);
+  // This is the "draft" range that the user interacts with inside the popover
   const [selectedRange, setSelectedRange] = React.useState<
     DateRange | undefined
   >(initialDateRange);
 
-  // State for current month view in calendar
   const [month, setMonth] = React.useState<Date | undefined>(
     variant === 'range'
       ? initialDateRange?.from || new Date()
       : initialDate || new Date()
   );
-
-  // State for range picker view ("presets" or "custom")
   const [rangePickerView, setRangePickerView] = React.useState<
     'presets' | 'custom'
   >('presets');
-
-  // Input states for custom range
   const [startInput, setStartInput] = React.useState<string>('');
   const [endInput, setEndInput] = React.useState<string>('');
+
+  // Effect to sync inputs with the selectedRange (draft state)
+  React.useEffect(() => {
+    if (selectedRange?.from) {
+      setStartInput(format(selectedRange.from, 'dd/MM/yyyy'));
+    } else {
+      setStartInput('');
+    }
+    if (selectedRange?.to) {
+      setEndInput(format(selectedRange.to, 'dd/MM/yyyy'));
+    } else {
+      setEndInput('');
+    }
+  }, [selectedRange]);
 
   // Update internal states if initial props change
   React.useEffect(() => {
@@ -90,39 +101,25 @@ export function DatePicker({
   }, [initialDate]);
 
   React.useEffect(() => {
+    setCommittedRange(initialDateRange);
     setSelectedRange(initialDateRange);
-    if (initialDateRange?.from) {
-      setMonth(initialDateRange.from);
-      setStartInput(format(initialDateRange.from, 'dd/MM/yyyy'));
-    } else {
-      setStartInput('');
-    }
-    if (initialDateRange?.to) {
-      setEndInput(format(initialDateRange.to, 'dd/MM/yyyy'));
-    } else {
-      setEndInput('');
-    }
+    if (initialDateRange?.from) setMonth(initialDateRange.from);
   }, [initialDateRange]);
 
-  // Reset range view when popover opens for range picker
-  React.useEffect(() => {
-    if (isOpen && variant === 'range') {
-      setRangePickerView('presets');
-      // Also update input fields if a range is already selected
-      if (selectedRange?.from)
-        setStartInput(format(selectedRange.from, 'dd/MM/yyyy'));
-      else setStartInput('');
-      if (selectedRange?.to)
-        setEndInput(format(selectedRange.to, 'dd/MM/yyyy'));
-      else setEndInput('');
+  // FIX #2: Handle popover close logic
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      // If closing, reset the draft range to the last committed range
+      setSelectedRange(committedRange);
+      setRangePickerView('presets'); // Reset view on close
     }
-  }, [isOpen, variant, selectedRange]);
+    setIsOpen(open);
+  };
 
   const handleSingleSelect = (date: Date | undefined) => {
     setSelectedDate(date);
     if (date) setMonth(date);
     if (!showSingleDoneButton) {
-      // Immediate selection if no Done button
       if (onDateChange) onDateChange(date);
       if (date) setIsOpen(false);
     }
@@ -136,15 +133,7 @@ export function DatePicker({
   const handleRangeCalendarSelect = (range: DateRange | undefined) => {
     setSelectedRange(range);
     if (range?.from) {
-      setStartInput(format(range.from, 'dd/MM/yyyy'));
       setMonth(range.from);
-    } else {
-      setStartInput('');
-    }
-    if (range?.to) {
-      setEndInput(format(range.to, 'dd/MM/yyyy'));
-    } else {
-      setEndInput('');
     }
   };
 
@@ -152,7 +141,7 @@ export function DatePicker({
     const parts = dateString.split('/');
     if (parts.length === 3) {
       const day = parseInt(parts[0], 10);
-      const monthVal = parseInt(parts[1], 10) - 1; // Month is 0-indexed in Date
+      const monthVal = parseInt(parts[1], 10) - 1;
       const year = parseInt(parts[2], 10);
       if (
         !isNaN(day) &&
@@ -191,21 +180,20 @@ export function DatePicker({
     setEndInput(value);
     const newEndDate = parseDateInput(value);
     if (newEndDate) {
-      setSelectedRange({ from: selectedRange?.from, to: newEndDate });
+      setSelectedRange((prev: DateRange | undefined): DateRange | undefined => ({ from: prev?.from, to: newEndDate }));
       if (!selectedRange?.from) setMonth(newEndDate);
     } else if (value === '') {
-      setSelectedRange({ from: selectedRange?.from, to: undefined });
+      setSelectedRange((prev: DateRange | undefined): DateRange | undefined => ({ from: prev?.from, to: undefined }));
     }
   };
 
   const presets: DatePreset[] = [
-    { label: 'Today', getValue: () => ({ from: new Date(), to: new Date() }) },
+    // FIX #3: "Today" preset now only sets the 'from' date.
+    { label: 'Today', getValue: () => ({ from: new Date(), to: undefined }) },
+    // FIX #4: "Yesterday" preset now sets 'from' to yesterday and 'to' to today.
     {
       label: 'Yesterday',
-      getValue: () => ({
-        from: subDays(new Date(), 1),
-        to: subDays(new Date(), 1),
-      }),
+      getValue: () => ({ from: subDays(new Date(), 1), to: new Date() }),
     },
     {
       label: 'Last 7 days',
@@ -222,25 +210,26 @@ export function DatePicker({
   ];
 
   const handleRangePresetSelect = (preset: DatePreset) => {
-    const value = preset.getValue() as DateRange; // Presets for range return DateRange
+    const value = preset.getValue();
     setSelectedRange(value);
-    if (value.from) setStartInput(format(value.from, 'dd/MM/yyyy'));
-    if (value.to) setEndInput(format(value.to, 'dd/MM/yyyy'));
-    if (onDateRangeChange) onDateRangeChange(value);
-    setIsOpen(false);
+    setRangePickerView('custom'); // Move to custom view after selecting a preset
+    if (value.from) {
+      setMonth(value.from);
+    }
+    // FIX #2: Do not close the popover after selecting a preset.
   };
 
   const handleCustomRangeDone = () => {
-    // Basic validation: ensure 'from' is before or same as 'to'
     if (
       selectedRange?.from &&
       selectedRange?.to &&
       selectedRange.from > selectedRange.to
     ) {
-      // Optionally show an error message or swap dates
       alert('Start date must be before or same as end date.');
       return;
     }
+    // Commit the changes
+    setCommittedRange(selectedRange);
     if (onDateRangeChange) onDateRangeChange(selectedRange);
     setIsOpen(false);
   };
@@ -249,28 +238,28 @@ export function DatePicker({
     if (variant === 'single') {
       return selectedDate ? format(selectedDate, 'dd/MM/yyyy') : placeholder;
     }
-    // For range
-    if (selectedRange?.from && selectedRange?.to) {
-      return `${format(selectedRange.from, 'dd/MM/yyyy')} - ${format(
-        selectedRange.to,
+    // For range, display the *committed* range
+    if (committedRange?.from && committedRange?.to) {
+      return `${format(committedRange.from, 'dd/MM/yyyy')} - ${format(
+        committedRange.to,
         'dd/MM/yyyy'
       )}`;
     }
-    if (selectedRange?.from) {
-      return `${format(selectedRange.from, 'dd/MM/yyyy')} - ...`;
+    if (committedRange?.from) {
+      return `${format(committedRange.from, 'dd/MM/yyyy')} - ...`;
     }
     return placeholder;
   };
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant={'outline'}
           disabled={disabled}
           className={cn(
             'justify-start text-left font-normal',
-            !(variant === 'single' ? selectedDate : selectedRange?.from) &&
+            !(variant === 'single' ? selectedDate : committedRange?.from) &&
               'text-muted-foreground',
             buttonClassName
           )}
@@ -304,7 +293,7 @@ export function DatePicker({
         {variant === 'range' && (
           <>
             {rangePickerView === 'presets' && (
-              <div className="p-3 space-y-1 min-w-[220px]">
+              <div className="p-3 space-y-1 w-[250px]">
                 {presets.map((preset) => (
                   <Button
                     key={preset.label}
@@ -328,48 +317,66 @@ export function DatePicker({
             )}
 
             {rangePickerView === 'custom' && (
-              <div className="p-3 grid">
-                <div className="flex items-center mb-3">
+              // Set a fixed width and use grid with a gap for consistent spacing
+              <div className="p-3 grid gap-4 w-[250px]">
+                <div className="flex items-center -ml-2">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setRangePickerView('presets')}
-                    className="mr-auto px-2"
+                    className="mr-auto px-2 font-semibold"
                   >
-                    <ChevronLeft className="h-4 w-4 mr-1" /> Select Date Range
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Select date range
                   </Button>
                 </div>
-                <div className="flex items-center space-x-2 mb-4">
-                  <Input
-                    type="text"
-                    placeholder={rangePlaceholderStart}
-                    value={startInput}
-                    onChange={handleStartInputChange}
-                    // className="w-full text-sm"
-                  />
-                  {/* <span className="text-muted-foreground">-</span> */}
-                  <Input
-                    type="text"
-                    placeholder={rangePlaceholderEnd}
-                    value={endInput}
-                    onChange={handleEndInputChange}
-                    // className="w-full text-sm"
-                  />
+
+                {/* Use a 2-column grid for the inputs for a clean, aligned layout */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1">
+                    <label
+                      htmlFor="start-date"
+                      className="text-sm text-muted-foreground"
+                    >
+                      Start
+                    </label>
+                    <Input
+                      id="start-date"
+                      variant="sm"
+                      placeholder="dd/mm/yyyy"
+                      value={startInput}
+                      onChange={handleStartInputChange}
+                    />
+                  </div>
+                  <div className="grid gap-1">
+                    <label
+                      htmlFor="end-date"
+                      className="text-sm text-muted-foreground"
+                    >
+                      End
+                    </label>
+                    <Input
+                      id="end-date"
+                      variant="sm"
+                      placeholder="dd/mm/yyyy"
+                      value={endInput}
+                      onChange={handleEndInputChange}
+                    />
+                  </div>
                 </div>
+
                 <Calendar
                   mode="range"
                   selected={selectedRange}
-                  onSelect={handleRangeCalendarSelect} // Correct typing for onSelect
+                  onSelect={handleRangeCalendarSelect}
                   month={month}
                   onMonthChange={setMonth}
-                  numberOfMonths={2}
+                  numberOfMonths={1} // This correctly keeps it as one calendar
                   disabled={disabled}
-                  className="[&_button]:rounded-full [&_button:hover]:bg-accent [&_button:focus-visible]:ring-1 grid w-full" // Example of targeting inner buttons
+                  className="!m-0 p-0" // Reset margin/padding for cleaner integration
                 />
                 <div className="grid w-full">
-                  <Button className="w-full" onClick={handleCustomRangeDone}>
-                    Done
-                  </Button>
+                  <Button onClick={handleCustomRangeDone}>Done</Button>
                 </div>
               </div>
             )}

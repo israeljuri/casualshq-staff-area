@@ -3,8 +3,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/molecules/Button';
-import searchIcon from '@/assets/input/search.svg'
-import Image from 'next/image';
 import {
   Form,
   FormControl,
@@ -14,28 +12,32 @@ import {
   FormMessage,
 } from '@/components/molecules/Form';
 
-import { SearchableInput } from '@/components/molecules/SearchableInput';
-import {
-  SearchStaffData,
-  SearchStaffSchema,
-  Staff,
-} from '@/types';
+import { SearchStaffData, SearchStaffSchema } from '@/types';
 
 import { useState } from 'react';
-import Link from 'next/link';
 
-import { useStaffSignIn } from '@/hooks/useStaffSignIn';
-import { useGetStaffs } from '@/hooks/useGetStaffs';
 import { Skeleton } from '@/components/atoms/skeleton';
 import { PasswordInput } from '@/components/molecules/PasswordInput';
+import { useStaffSignIn } from '@/hooks/useStaffSignIn';
+import { SearchInput } from '@/components/molecules/SearchInput';
+import { useStaffSearch } from '@/hooks/useAuthenticationMutations';
+import { useMutation } from '@apollo/client';
+import { LOGOUT } from '@/graphql/mutations';
+import useAlert from '@/hooks/useAlert';
+import { useRouter } from 'next/navigation';
+import { authAdminCookies } from '@/lib/authCookies';
+import { LogOut } from 'lucide-react';
 
 export function SearchStaffForm() {
-  const [selectedStaff, setSelectedStaff] = useState<Staff>();
+  const alert = useAlert();
+  const router = useRouter();
+  const [selectedStaff, setSelectedStaff] = useState<{
+    id: string;
+    name: string;
+  }>();
 
-  const staffsResponse = useGetStaffs();
-  const staffList = staffsResponse?.data ? staffsResponse.data : [];
-
-  const mutation = useStaffSignIn();
+  const searchStaff = useStaffSearch();
+  const { mutate, isPending } = useStaffSignIn();
 
   const form = useForm<SearchStaffData>({
     resolver: zodResolver(SearchStaffSchema),
@@ -46,82 +48,108 @@ export function SearchStaffForm() {
   });
 
   function onSubmit(values: SearchStaffData) {
-    console.log('Selected staff:', selectedStaff);
-    mutation.mutate(values);
+    if (!selectedStaff) return;
+    mutate({
+      staffLoginId: selectedStaff.id,
+      password: values.password,
+      context: 'WEB',
+    });
   }
 
-  const handleStaffSelect = (staff: Staff) => {
+  const handleStaffSelect = (staff: { id: string; name: string }) => {
     setSelectedStaff(staff);
-    form.setValue('name', `${staff.firstName} ${staff.lastName}`);
+    form.setValue('name', `${staff.name}`);
     form.clearErrors('name');
   };
 
+  const [logout, { loading }] = useMutation(LOGOUT, {
+    onError: (error) => {
+      alert.showAlert(error.name, 'error', {
+        subtext: error.message,
+      });
+    },
+    onCompleted: () => {
+      authAdminCookies.clear();
+      router.replace('/admin-sign-in');
+    },
+  });
+
+  const handleLogout = () => logout();
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {!staffsResponse?.isPending && (
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="relative space-y-6"
+      >
+        <Button
+          type="button"
+          disabled={loading}
+          variant="outline"
+          className="fixed bottom-4 right-10 z-50 bg-[#FF0000] hover:bg-[#ff4848] text-white"
+          leftIcon={<LogOut className="h-5 w-5 text-white" />}
+          onClick={handleLogout}
+        >
+          {loading ? 'Please wait' : 'Logout'}
+        </Button>
+
+        {!searchStaff.isPending && (
+          <div className="grid grid-cols-[1fr_auto] items-start gap-2 w-full">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem className="w-full">
+                  <FormControl>
+                    <SearchInput
+                      {...field}
+                      placeholder={'Search for your name...'}
+                      isLoading={searchStaff.isPending}
+                      results={searchStaff.data?.data || []}
+                      onResultSelect={handleStaffSelect}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button
+              type="button"
+              disabled={searchStaff.isPending}
+              onClick={() => {
+                searchStaff.mutate(form.getValues('name'));
+              }}
+            >
+              Search
+            </Button>
+          </div>
+        )}
+
+        {searchStaff.isPending && (
+          <Skeleton className="w-full h-[4.5rem] rounded-xl" />
+        )}
+
+        {selectedStaff && (
           <FormField
             control={form.control}
-            name="name"
-            render={() => (
+            name="password"
+            render={({ field }) => (
               <FormItem>
-                <FormLabel>Enter Name</FormLabel>
+                <FormLabel>Password</FormLabel>
                 <FormControl>
-                  <SearchableInput
-                    data={staffList}
-                    searchKeys={['firstName', 'lastName', 'email']}
-                    onResults={() => {}}
-                    onSelectItem={handleStaffSelect}
-                    placeholder="Search for your name..."
-                    leftIcon={<Image src={searchIcon} alt=""/>}
-                    renderResultItem={(item) => (
-                      <div className="flex flex-col">
-                        <span className="font-medium">
-                          {item.firstName} {item.lastName}
-                        </span>
-                      </div>
-                    )}
-                  />
+                  <PasswordInput placeholder="Enter password" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         )}
-        {staffsResponse?.isPending && (
-          <Skeleton className="w-full h-[4.5rem] rounded-xl" />
-        )}
 
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <PasswordInput placeholder="Enter password" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         <div className="space-y-4">
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={mutation.isPending}
-          >
-            {mutation.isPending ? 'Sigining In' : 'Sign In'}
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? 'Please wait' : 'Proceed'}
           </Button>
         </div>
-
-        <article className="space-y-4 mt-4">
-          <p className="text-center text-sm text-custom-gray">
-            <Link href="/forgot-password" className="text-primary font-medium">
-              Reset Password
-            </Link>
-          </p>
-        </article>
       </form>
     </Form>
   );

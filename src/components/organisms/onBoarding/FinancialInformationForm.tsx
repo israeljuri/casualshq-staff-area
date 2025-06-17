@@ -16,17 +16,24 @@ import { Button } from '@/components/molecules/Button';
 import { Input } from '@/components/molecules/Input';
 import { FinancialInformationData, FinancialInformationSchema } from '@/types';
 import { useEffect } from 'react';
-import { useAccountSetup } from '@/hooks/useAccountSetup';
+import { useOnboardStaffFinancialInformationMutation } from '@/hooks/useOnboardingMutations';
 
 const FinancialInformationForm = () => {
   const router = useRouter();
-  const accountSetupResponse = useAccountSetup();
 
+  // Store - Get data from onboarding store
+  const tokenId = useOnboardingStore((state) => state.tokenId);
+  const stage = useOnboardingStore((state) => state.stage);
+  const setStage = useOnboardingStore((state) => state.setStage);
   const setFinancialInformationData = useOnboardingStore(
     (state) => state.setFinancialInformationData
   );
-  const currentStep = useOnboardingStore((state) => state.currentStep);
 
+  // API - Mutations
+  const { mutate, isPending, data } =
+    useOnboardStaffFinancialInformationMutation();
+
+  // Form - Create form, form submission and general form validation
   const form = useForm<FinancialInformationData>({
     resolver: zodResolver(FinancialInformationSchema),
     defaultValues: {},
@@ -34,29 +41,47 @@ const FinancialInformationForm = () => {
 
   function onSubmit(values: FinancialInformationData) {
     setFinancialInformationData(values);
+    mutate({
+      tax_file_number: values.tfn,
+      bank_bsb: values.bankDetails.bsb,
+      account_name: values.bankDetails.name,
+      account_number: values.bankDetails.account,
+      super_fund_name: values.superAnnuation.name,
+      fund_abn: values.superAnnuation.abn,
+      super_fund_usi: values.superAnnuation.usi,
+      member_number: values.superAnnuation.memberNumber,
+      token_id: tokenId!,
+    });
+    if (data?.stage) setStage(data.stage);
     router.push('/onboarding/completed');
   }
 
   useEffect(() => {
-    if (currentStep !== 3) {
+    if (
+      stage === 'PERSONAL_INFORMATION' ||
+      stage === 'ADDRESS' ||
+      stage === 'EMERGENCY_CONTACT'
+    ) {
       router.back();
     }
-  }, []);
+  }, [stage]);
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 w-full">
         <section className="space-y-6">
-          <div className="rounded-xl border p-4 space-y-5">
+          <div className="rounded-[1rem] border p-4 space-y-5">
             <article className="border-b pb-3">
-              <h4 className="text-xl">Tax details</h4>
+              <h4 className="text-base font-medium">Tax details</h4>
             </article>
             <FormField
               control={form.control}
               name="tfn"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tax File Name (TFN)</FormLabel>
+                  <FormLabel className="text-[0.875rem]">
+                    Tax File Name (TFN)
+                  </FormLabel>
                   <FormControl>
                     <Input placeholder="Enter tax file number" {...field} />
                   </FormControl>
@@ -66,16 +91,18 @@ const FinancialInformationForm = () => {
             />
           </div>
 
-          <div className="rounded-xl border p-4 space-y-5">
+          <div className="rounded-[1rem] border p-4 space-y-5">
             <article className="border-b pb-3">
-              <h4 className="text-xl">Bank details</h4>
+              <h4 className="text-base font-medium">Bank details</h4>
             </article>
             <FormField
               control={form.control}
               name="bankDetails.name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name on bank account</FormLabel>
+                  <FormLabel className="text-[0.875rem]">
+                    Name on bank account
+                  </FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Enter name on bank account"
@@ -91,7 +118,7 @@ const FinancialInformationForm = () => {
               name="bankDetails.bsb"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Account BSB</FormLabel>
+                  <FormLabel className="text-[0.875rem]">Account BSB</FormLabel>
                   <FormControl>
                     <Input placeholder="Enter bank BSB" {...field} />
                   </FormControl>
@@ -104,7 +131,9 @@ const FinancialInformationForm = () => {
               name="bankDetails.account"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Account number</FormLabel>
+                  <FormLabel className="text-[0.875rem]">
+                    Account number
+                  </FormLabel>
                   <FormControl>
                     <Input placeholder="Enter account number" {...field} />
                   </FormControl>
@@ -114,16 +143,18 @@ const FinancialInformationForm = () => {
             />
           </div>
 
-          <div className="rounded-xl border p-4 space-y-5">
+          <div className="rounded-[1rem] border p-4 space-y-5">
             <article className="border-b pb-3">
-              <h4 className="text-xl">Superannuation</h4>
+              <h4 className="text-base font-medium">Superannuation</h4>
             </article>
             <FormField
               control={form.control}
               name="superAnnuation.name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Super fund name</FormLabel>
+                  <FormLabel className="text-[0.875rem]">
+                    Super fund name
+                  </FormLabel>
                   <FormControl>
                     <Input placeholder="Enter super fund name" {...field} />
                   </FormControl>
@@ -136,7 +167,9 @@ const FinancialInformationForm = () => {
               name="superAnnuation.abn"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Super fund ABN</FormLabel>
+                  <FormLabel className="text-[0.875rem]">
+                    Super fund ABN
+                  </FormLabel>
                   <FormControl>
                     <Input placeholder="Enter super fund ABN" {...field} />
                   </FormControl>
@@ -149,7 +182,9 @@ const FinancialInformationForm = () => {
               name="superAnnuation.usi"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Super fund USI</FormLabel>
+                  <FormLabel className="text-[0.875rem]">
+                    Super fund USI
+                  </FormLabel>
                   <FormControl>
                     <Input placeholder="Enter super fund USI" {...field} />
                   </FormControl>
@@ -162,7 +197,9 @@ const FinancialInformationForm = () => {
               name="superAnnuation.memberNumber"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Super fund member number</FormLabel>
+                  <FormLabel className="text-[0.875rem]">
+                    Super fund member number
+                  </FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Enter super fund member number"
@@ -178,12 +215,12 @@ const FinancialInformationForm = () => {
 
         <div className={'grid w-full'}>
           <Button
-            disabled={accountSetupResponse.isPending}
+            disabled={isPending}
             type="submit"
             variant="primary"
             size="lg"
           >
-            {accountSetupResponse.isPending ? 'Setting up account' : 'Complete'}
+            {isPending ? 'Setting up account' : 'Complete'}
           </Button>
         </div>
       </form>

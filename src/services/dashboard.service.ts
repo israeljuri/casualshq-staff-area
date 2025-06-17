@@ -1,9 +1,4 @@
-import {
-  Staff,
-  TimeLog,
-  BreakRecord,
-  BreakType,
-} from '@/types';
+import { Staff, Timesheets, BreakRecord } from '@/types';
 
 import { format, parseISO } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
@@ -40,7 +35,7 @@ export const updateStaffData = async (
 };
 
 // Simulating Action Services
-export const clockInService = async (userId: string): Promise<TimeLog> => {
+export const clockInService = async (userId: string): Promise<Timesheets> => {
   const currentData = await getStaffById(userId);
   const now = new Date();
   const todayDateStr = format(now, 'yyyy-MM-dd');
@@ -57,7 +52,20 @@ export const clockInService = async (userId: string): Promise<TimeLog> => {
     return existingLogToday; // Or throw an error: throw new Error("Already clocked in today.");
   }
 
-  const newLog: TimeLog = {
+  const newLog: {
+    id: string;
+    date: string;
+    clockInTime: string;
+    clockOutTime: string | null;
+    breaks: BreakRecord[];
+    totalWorkMs: number;
+    totalBreakMs: number;
+    timeIn: string;
+    totalBreak: string;
+    totalHours: string;
+    status: string;
+    overtime: string;
+  } = {
     id: uuidv4(),
     date: todayDateStr,
     clockInTime: now.toISOString(),
@@ -65,6 +73,11 @@ export const clockInService = async (userId: string): Promise<TimeLog> => {
     breaks: [],
     totalWorkMs: 0, // Will be calculated on clock out or dynamically
     totalBreakMs: 0, // Will be calculated
+    timeIn: now.toISOString(),
+    totalBreak: '0',
+    totalHours: '0',
+    status: 'active',
+    overtime: '0',
   };
 
   const updatedLogs = [...currentData.timeLogs, newLog];
@@ -75,10 +88,10 @@ export const clockInService = async (userId: string): Promise<TimeLog> => {
 export const clockOutService = async (
   userId: string,
   logId: string
-): Promise<TimeLog> => {
+): Promise<Timesheets> => {
   const currentData = await getStaffById(userId);
   const now = new Date();
-  let updatedLog: TimeLog | undefined;
+  let updatedLog: Timesheets | undefined;
 
   const updatedLogs = currentData.timeLogs.map((log) => {
     if (log.id === logId && !log.clockOutTime) {
@@ -120,12 +133,12 @@ export const clockOutService = async (
 export const startBreakService = async (
   userId: string,
   logId: string,
-  breakType: BreakType
+  breakType: string
 ): Promise<BreakRecord> => {
   const currentData = await getStaffById(userId);
   const now = new Date();
   let newBreakRecord: BreakRecord | undefined;
-  let targetLog: TimeLog | undefined;
+  let targetLog: Timesheets | undefined;
 
   const updatedLogs = currentData.timeLogs.map((log) => {
     if (

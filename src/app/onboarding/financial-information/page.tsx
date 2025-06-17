@@ -4,18 +4,18 @@ import FinancialInformationForm from '@/components/organisms/onBoarding/Financia
 
 export default function Onboarding() {
   return (
-    <main className="min-h-screen">
-      <article className="grid place-items-center text-center mb-8">
-        <div className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium text-custom-gray mb-2 gap-2">
+    <main className="min-h-screen space-y-14">
+      <article className="grid place-items-center text-center">
+        <div className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[0.875rem] font-medium text-custom-gray mb-2 gap-2">
           <span className="rounded-full h-[1.5rem] w-[1.5rem] grid place-items-center bg-primary font-bold text-white">
             2
           </span>
-          Step 1 of 2
+          Step 2 of 2
         </div>
-        <h1 className="text-3xl font-medium text-gray-900">
+        <h1 className="text-[2rem] font-medium text-gray-900">
           Financial information
         </h1>
-        <p className="text-sm text-custom-gray mt-2 leading-6 max-w-[50ch]">
+        <p className="text-base text-custom-gray mt-2 leading-6 max-w-[43ch]">
           Please provide the following information.
         </p>
       </article>

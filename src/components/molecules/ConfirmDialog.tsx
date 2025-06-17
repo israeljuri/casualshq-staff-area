@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { AlertDialog, AlertDialogContent } from '@/components/atoms/alert-dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogTitle } from '@/components/atoms/alert-dialog';
 
 interface ReusableConfirmDialogProps {
   open: boolean;
@@ -32,6 +32,7 @@ export function ConfirmDialog({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="w-full md:w-[25rem] p-0 bg-transparent overflow-hidden border-none">
+        <AlertDialogTitle className="sr-only"></AlertDialogTitle>
         {content}
       </AlertDialogContent>
     </AlertDialog>

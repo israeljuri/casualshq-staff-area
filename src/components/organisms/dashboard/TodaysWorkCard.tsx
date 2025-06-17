@@ -1,5 +1,10 @@
 import { Button } from '@/components/molecules/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/atoms/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/atoms/card';
 import { ConfirmDialog } from '@/components/molecules/ConfirmDialog';
 import Image from 'next/image';
 import {
@@ -12,40 +17,71 @@ import {
 } from '@/components/molecules/Form';
 import { Textarea } from '@/components/molecules/Textarea';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
+import {   useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { CockoutReasonData, CockoutReasonSchema } from '@/types';
-import { evaluateWorkDurationFromTimeString } from '@/lib/utils';
+import {
+  evaluateWorkDurationFromTimeString,
+} from '@/lib/utils';
 
 import playIcon from '@/assets/staff/play.svg';
 import stopIcon from '@/assets/staff/stop.svg';
 import warningIcon from '@/assets/alert/warning-icon.svg';
 import closeIcon from '@/assets/alert/close-icon.svg';
 
-interface TodaysWorkCardProps {
-  currentTime: string; // e.g., "06:01:23" (formatted duration)
-  isClockedIn: boolean;
-  onClockIn: () => void;
-  onClockOut: () => void;
-  canInteract: boolean; // If false, buttons are disabled
-  showClockInButton?: boolean; // Explicitly control clock-in button visibility
-}
+import WorkValue from './WorkValue';
+import { parseISO } from 'date-fns';
 
 export const TodaysWorkCard = ({
-  currentTime,
+  expectedWorkHours,
+  isLoading,
+  clockedInAt,
   isClockedIn,
-  onClockIn,
-  onClockOut,
-  canInteract,
   showClockInButton,
-}: TodaysWorkCardProps) => {
+  canInteract,
+  onClockIn,
+  clockInLoading,
+  onClockOut,
+  clockOutLoading,
+  currentTime,
+}: {
+  isLoading: boolean;
+  expectedWorkHours: number;
+  clockedInAt: string;
+  isClockedIn: boolean;
+  showClockInButton: boolean;
+  canInteract: boolean;
+  onClockIn: () => void;
+  clockInLoading: boolean;
+  onClockOut: () => void;
+  clockOutLoading: boolean;
+  currentTime: string;
+}) => {
+
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [actionToConfirm, setActionToConfirm] = useState<string | null>(null);
   const [sendRequest, setSendRequest] = useState(false);
 
   const handleInitiateAction = () => {
     setIsConfirmOpen(true);
-    const result = evaluateWorkDurationFromTimeString(currentTime);
+    const start = parseISO(clockedInAt).getTime();
+    const end = parseISO(new Date().toISOString()).getTime();
+
+    const diffMs = end - start;
+
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+    const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(
+      2,
+      '0'
+    );
+    const seconds = String(totalSeconds % 60).padStart(2, '0');
+
+    const formattedDuration = `${hours}:${minutes}:${seconds}`;
+    const result = evaluateWorkDurationFromTimeString(
+      formattedDuration,
+      expectedWorkHours
+    );
     if (typeof result === 'string') return setActionToConfirm('overTime');
     if (result) return setActionToConfirm('default');
     return setActionToConfirm('underTime');
@@ -83,13 +119,13 @@ export const TodaysWorkCard = ({
         content={
           <>
             {actionToConfirm === 'underTime' && (
-              <article className="grid grid-cols-[max-content_1fr_max-content] place-items-start gap-5 bg-[#FEF6E7] p-5">
+              <article className="grid grid-cols-[max-content_1fr_max-content] place-items-start gap-5 bg-[#FEF6E7] w-auto md:max-w-[21.438rem] rounded-[0.5rem] p-[1rem]">
                 <span className="bg-white rounded-full flex w-[3rem] h-[3rem] items-center justify-center">
                   <Image src={warningIcon} alt="" />
                 </span>
                 <article className="space-y-3">
-                  <h4 className="font-medium text-lg text-black">Warning</h4>
-                  <p className="text-base text-custom-gray">
+                  <h4 className="font-medium text-base text-black">Warning</h4>
+                  <p className="text-[0.875rem] text-custom-gray">
                     You are trying to clock out before your scheduled time. Are
                     you sure you want to proceed?
                   </p>
@@ -120,12 +156,12 @@ export const TodaysWorkCard = ({
             )}
 
             {actionToConfirm === 'default' && (
-              <article className="p-5 bg-white rounded-2xl border">
+              <article className="p-5 bg-white rounded-[0.5rem]">
                 <article className="space-y-3">
-                  <h4 className="font-medium text-2xl text-black">
+                  <h4 className="font-medium text-base text-black">
                     Clock out?
                   </h4>
-                  <p className="text-base text-custom-gray">
+                  <p className="text-[0.875rem] text-custom-gray">
                     Are you sure you want to clock out?
                   </p>
                 </article>
@@ -151,14 +187,14 @@ export const TodaysWorkCard = ({
             )}
 
             {actionToConfirm === 'overTime' && (
-              <article className="grid grid-cols-[max-content_1fr_max-content] place-items-start gap-5 bg-[#FEF6E7] p-5">
+              <article className="grid grid-cols-[max-content_1fr_max-content] place-items-start gap-5 bg-[#FEF6E7] w-auto md:max-w-[21.438rem] rounded-[0.5rem] p-[1rem]">
                 <span className="bg-white rounded-full flex w-[3rem] h-[3rem] items-center justify-center">
                   <Image src={warningIcon} alt="" />
                 </span>
 
                 <article className="space-y-3">
-                  <h4 className="font-medium text-lg text-black">Warning</h4>
-                  <p className="text-base text-custom-gray">
+                  <h4 className="font-medium text-base text-black">Warning</h4>
+                  <p className="text-[0.875rem] text-custom-gray">
                     You have worked{' '}
                     {evaluateWorkDurationFromTimeString(currentTime)} over your
                     allocated shift. Do you want to request overtime?
@@ -253,44 +289,44 @@ export const TodaysWorkCard = ({
         <CardContent className="flex flex-col items-center justify-center flex-grow text-center">
           {showClockInButton && canInteract ? (
             <>
-              <p className="font-medium text-lg text-center px-4 max-w-[35ch] py-20">
+              <p className="font-medium text-[1.125rem] text-center px-4 max-w-[35ch] py-20">
                 Click on the &ldquo;Clock in&rdquo; button below to begin
                 tracking your hours today.
               </p>
               <Button
                 size="lg"
                 onClick={onClockIn}
-                disabled={!canInteract}
+                disabled={!canInteract || clockInLoading || isLoading}
                 leftIcon={<Image src={playIcon} alt="" />}
               >
-                Clock in
+                {clockInLoading ? 'Please wait' : 'Clock in'}
               </Button>
             </>
           ) : isClockedIn ? (
             <>
-              <div className="text-5xl font-medium text-gray-800 mb-6 tabular-nums py-20">
-                {currentTime}
+              <div className="text-[3rem] font-medium text-gray-800 mb-6 tabular-nums py-20">
+                <WorkValue clockedInAt={clockedInAt} />
               </div>
 
               <Button
                 size="lg"
                 onClick={handleInitiateAction}
-                disabled={!canInteract}
+                disabled={!canInteract || clockOutLoading}
                 leftIcon={<Image src={stopIcon} alt="" />}
               >
-                Clock out
+                {clockOutLoading ? 'Please wait' : 'Clock out'}
               </Button>
             </>
           ) : (
             <>
-              <div className="text-5xl font-medium text-black mb-6 tabular-nums">
-                {currentTime === '0:00:00' && !canInteract ? (
-                  <p className="font-medium text-lg text-center px-4 max-w-[35ch] py-20">
+              <div className="text-[3rem] font-medium text-black mb-6 tabular-nums">
+                {!showClockInButton && !canInteract ? (
+                  <p className="font-medium text-[1.125rem] text-center px-4 max-w-[35ch] py-20">
                     Click on the &ldquo;Clock in&rdquo; button below to begin
                     tracking your hours today.
                   </p>
                 ) : (
-                  currentTime
+                  <WorkValue clockedInAt={clockedInAt} />
                 )}
               </div>
               <p className="text-gray-500 text-sm">

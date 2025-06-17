@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery as useApolloQuery } from '@apollo/client';
 import {
   getStaffById,
   clockInService,
@@ -9,12 +10,7 @@ import {
   startBreakService,
   endBreakService,
 } from '../services/dashboard.service'; // Assuming path is correct
-import {
-  Staff,
-  BreakRecord,
-  BreakType,
-  ActiveSessionState,
-} from '@/types';
+import { Staff, BreakRecord, ActiveSessionState } from '@/types';
 import {
   parseISO,
   format,
@@ -27,13 +23,22 @@ import {
   addDays,
 } from 'date-fns';
 import useAlert from '@/hooks/useAlert';
+import { GET_BREAK_TYPES } from '@/graphql/queries';
 
-export const useDashboardStats = (
-  userId: string,
-  initialSelectedDate: Date = new Date()
-) => {
+export const useDashboardStats = (initialSelectedDate: Date = new Date()) => {
   const queryClient = useQueryClient();
   const alert = useAlert();
+
+  const [breakTypes, setBreakTypes] = useState<string[]>([]);
+
+  useApolloQuery(GET_BREAK_TYPES, {
+    onCompleted: (data) => {
+      setBreakTypes(data.breakTypes.map((bt: { name: string }) => bt.name));
+    },
+    onError: (error) => {
+      alert.showAlert(error.name, 'error', { subtext: error.message });
+    },
+  });
 
   // States
   const [selectedDate, setSelectedDate] = useState<Date>(
@@ -55,7 +60,7 @@ export const useDashboardStats = (
     error: dataError,
   } = useQuery<Staff, Error>({
     queryKey: ['staffData'],
-    queryFn: () => getStaffById(userId),
+    queryFn: () => getStaffById('1'),
     staleTime: 1000 * 60 * 1, // 1 minute for more frequent updates if needed during dev
     refetchOnWindowFocus: true,
   });
@@ -357,7 +362,7 @@ export const useDashboardStats = (
   });
 
   const startBreakMutation = useMutation({
-    mutationFn: (breakType: BreakType) => {
+    mutationFn: (breakType: string) => {
       if (!activeSession.todaysLog?.id)
         throw new Error('No active log to start break on.');
       return startBreakService(
@@ -436,7 +441,7 @@ export const useDashboardStats = (
   }, [activeSession, selectedDate, clockOutMutation]);
 
   const handleStartBreak = useCallback(
-    (breakType: BreakType) => {
+    (breakType: string) => {
       if (
         !activeSession.isActive ||
         activeSession.isOnBreak ||
@@ -488,11 +493,7 @@ export const useDashboardStats = (
     handleStartBreak,
     handleEndBreak,
     isTodaySelected: isToday(selectedDate),
-    breakTypes: staffData?.breakTypes || [
-      'Recess',
-      'Coffee break',
-      'Long break',
-    ],
+    breakTypes,
     isMutating:
       clockInMutation.isPending ||
       clockOutMutation.isPending ||
